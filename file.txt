@@ -9,3 +9,6 @@ https://jsonplaceholder.typicode.com/posts/8
 https://jsonplaceholder.typicode.com/posts/9
 https://jsonplaceholder.typicode.com/posts/10
 https://jsonplaceholder.typicode.com/posts/11
+https://jsonplaceholder.typicode.com/posts/12
+https://jsonplaceholder.typicode.com/posts/13
+https://jsonplaceholder.typicode.com/posts/14

@@ -7,37 +7,50 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	s "strings"
 	"time"
 )
 
-type JsonPlaceHolder struct {
-	Id    int16  `json:"id"`
-	Title string `json:"title"`
-	Body  string `json:"body"`
+type UserPost struct {
+	PostId   int16  `json:"id"`
+	Title    string `json:"title"`
+	Body     string `json:"body"`
+	Comments *[]PostComments
+}
+
+type PostComments struct {
+	PostId int16  `json:"postId"`
+	Id     int16  `json:"id"`
+	Name   string `json:"name"`
+	Email  string `json:"email"`
+	Body   string `json:"body"`
 }
 
 func worker(id int, jobs <-chan Url, results chan<- Url) {
 	for url := range jobs {
 		fmt.Println("worker", id, "started working on", url)
-		post, err := url.fetch()
+		post, err1 := url.fetchPost()
+		comments, err2 := url.fetchComments()
 		fmt.Println("worker", id, "finished working on", url)
-		if err != nil {
-			results <- url
-		} else {
+		if err1 == nil {
 			url.success = true
 			url.post = post
-			results <- url
+			if err2 == nil {
+				url.post.Comments = comments
+			}
 		}
+
+		results <- url
 	}
 }
 
 type Url struct {
 	url     string
 	success bool
-	post    *JsonPlaceHolder
+	post    *UserPost
 }
 
-func (url *Url) fetch() (*JsonPlaceHolder, error) {
+func (url *Url) fetchPost() (*UserPost, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	// New request that inherits the caller's context (so timeout/cancel works)
@@ -57,11 +70,39 @@ func (url *Url) fetch() (*JsonPlaceHolder, error) {
 		return nil, fmt.Errorf("unexpected status %s", resp.Status)
 	}
 
-	var p JsonPlaceHolder
+	var p UserPost
 	if err := json.NewDecoder(resp.Body).Decode(&p); err != nil {
 		return nil, fmt.Errorf("json decode: %w", err)
 	}
 	return &p, nil
+}
+
+func (url *Url) fetchComments() (*[]PostComments, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	// New request that inherits the caller's context (so timeout/cancel works)
+	urlComments := s.Join([]string{url.url, "comments"}, "/")
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlComments, nil)
+	if err != nil {
+		return nil, fmt.Errorf("new request: %w", err)
+	}
+
+	// Use the default client – it has a built‑in transport and connection pool.
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("http do: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status %s", resp.Status)
+	}
+
+	var c []PostComments
+	if err := json.NewDecoder(resp.Body).Decode(&c); err != nil {
+		return nil, fmt.Errorf("json decode: %w", err)
+	}
+	return &c, nil
 }
 
 func main() {
@@ -107,9 +148,22 @@ func main() {
 
 	for i, p := range results {
 		if p.success {
-			fmt.Printf("🔹 %d – id=%d title=%q\n", i+1, p.post.Id, p.post.Title)
+			fmt.Printf("🔹 %d - id=%d title=%q\n", i+1, p.post.PostId, p.post.Title)
 		} else {
 			fmt.Printf("❌ error getting post: %s", p.url)
+		}
+	}
+
+	fmt.Println()
+
+	for _, p := range results {
+		if p.success && p.post.Comments != nil {
+			fmt.Printf("Following people commented on Post id %d:\n", p.post.PostId)
+			for i, c := range *p.post.Comments {
+				fmt.Printf("\t(%d) 🔹Name: %s\n", i, c.Name)
+			}
+		} else {
+			fmt.Printf("❌ error getting comments: %s\n", p.url)
 		}
 	}
 
