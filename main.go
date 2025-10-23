@@ -69,11 +69,16 @@ func main() {
 	// Absolute path to the file containing urls to be queried
 	filename := flag.String("filename",
 		"/home/user/file.txt", "The absolute path to a file of urls")
+	countWorkers := flag.Int("nw", 2, "Number of parallel jobs")
 
 	flag.Parse()
 
 	if !path.IsAbs(*filename) {
 		panic("'filename' should be an absolute path to a file")
+	}
+
+	if *countWorkers < 0 {
+		panic("Numnber of workers cannot be nagative")
 	}
 
 	urls, err := readLines(filename)
@@ -86,7 +91,7 @@ func main() {
 	jobs := make(chan Url, numJobs)
 	resps := make(chan Url, numJobs)
 
-	for w := 1; w <= 3; w++ {
+	for w := 1; w <= *countWorkers; w++ {
 		go worker(w, jobs, resps)
 	}
 
