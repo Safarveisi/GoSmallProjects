@@ -1,13 +1,11 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
-	"os"
 	"path"
 	"time"
 )
@@ -64,28 +62,6 @@ func (url *Url) fetch() (*JsonPlaceHolder, error) {
 		return nil, fmt.Errorf("json decode: %w", err)
 	}
 	return &p, nil
-}
-
-func readLines(filename *string) ([]Url, error) {
-	f, err := os.Open(*filename)
-	if err != nil {
-		return nil, fmt.Errorf("open file: %w", err)
-	}
-	defer f.Close()
-
-	var lines []Url
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		// ignore blank lines (useful if the file has a trailing newline)
-		if line != "" {
-			lines = append(lines, Url{url: line})
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("scanner error: %w", err)
-	}
-	return lines, nil
 }
 
 func main() {
