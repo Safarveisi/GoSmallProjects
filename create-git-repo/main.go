@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -18,6 +19,7 @@ var defaultFiles = []string{
 	"README.md",
 	"LICENSE.md",
 	".github/workflows/ci.yaml",
+	"tests/",
 }
 
 var workflowContent = `
@@ -99,7 +101,14 @@ func main() {
 		fmt.Println("Added remote origin.")
 
 		// Create default files
-		CreateDefaultFiles()
+		base, err := os.Getwd()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("Creating project skeleton in %s\n", base)
+		makeProjectSkeleton(base)
+
+		// Write sample content to some files
 		helper.WriteToFile(".github/workflows/ci.yaml", workflowContent)
 		helper.WriteToFile("README.md", fmt.Sprintf("# %s\n\nThis is the README for the %s repository.\n", *repoName, *repoName))
 
@@ -112,6 +121,7 @@ func main() {
 		defer f.Close()
 		f.WriteString(fmt.Sprintf("Repository %s created at %s\n", *repoName, time.Now().Format("2006-01-02 15:04:05")))
 
+		// Create remote repository on GitHub if requested
 		if *createRemote {
 			fmt.Println("Creating remote repository on GitHub...")
 			token, exists := os.LookupEnv("GITHUB_TOKEN")
@@ -129,24 +139,37 @@ func main() {
 	}
 }
 
-func CreateDefaultFiles() {
-	for _, file := range defaultFiles {
-		// Creates any necessary parent directories
-		dir := filepath.Dir(file)
-		if dir != "." {
-			if err := os.MkdirAll(dir, 0755); err != nil {
-				panic(err)
+func makeProjectSkeleton(baseDir string) error {
+	for _, rel := range defaultFiles {
+		// normalise the path (remove a possible leading "./")
+		rel = strings.TrimPrefix(rel, "./")
+
+		abs := filepath.Join(baseDir, rel)
+
+		// A directory is indicated by a trailing slash (POSIX) or by the OS‑specific separator.
+		// We also treat an entry that already exists and is a directory the same way.
+		if strings.HasSuffix(rel, string(os.PathSeparator)) || strings.HasSuffix(rel, "/") {
+			if err := os.MkdirAll(abs, 0o755); err != nil {
+				return fmt.Errorf("creating directory %q: %w", abs, err)
 			}
+			continue
 		}
-		// Create the file
-		f, err := os.Create(file)
+
+		// Ensure the parent directory exists before we try to create the file.
+		dir := filepath.Dir(abs)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("ensuring parent directory %q: %w", dir, err)
+		}
+
+		// "Touch" the file - create it if it does not exist, keep it unchanged otherwise.
+		f, err := os.OpenFile(abs, os.O_RDONLY|os.O_CREATE, 0o644)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("creating file %q: %w", abs, err)
 		}
 		f.Close()
-		fmt.Printf("Created file: %s\n", file)
 	}
-	fmt.Println("Created default files: README.md, .gitignore, LICENSE.md, ...")
+
+	return nil
 }
 
 func CreateRemoteRepo(repoName, token string) {
