@@ -40,6 +40,7 @@ func main() {
 	repoName := flag.String("repo-name", "dummy", "Name of the repository")
 	repoUser := flag.String("repo-user", "autocommitbot", "User name for git commits")
 	repoEmail := flag.String("repo-email", "autocommitbot@example.com", "Email for git commits")
+	createRemote := flag.Bool("create-remote", false, "Whether to create remote repository on GitHub")
 
 	flag.Parse()
 
@@ -56,6 +57,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+
 		fmt.Println("Initialized empty Git repository.")
 
 		fmt.Println("> git branch -M master")
@@ -63,6 +65,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+
 		fmt.Println("Renamed default branch to 'master'.")
 
 		fmt.Println("Setting user name and email for git commits.")
@@ -72,11 +75,13 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+
 		fmt.Printf("> git config user.email %s\n", *repoEmail)
 		err = exec.Command("git", "config", "user.email", *repoEmail).Run()
 		if err != nil {
 			panic(err)
 		}
+
 		fmt.Println("Configured username and email.")
 
 		fmt.Printf("> git remote add origin git@github.com:%s/%s.git\n", *repoUser, *repoName)
@@ -90,6 +95,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+
 		fmt.Println("Added remote origin.")
 
 		// Create default files
@@ -112,7 +118,13 @@ func main() {
 			os.Exit(1)
 		}
 
-		CreateRemoteRepo(*repoName, token)
+		if *createRemote {
+			fmt.Println("Creating remote repository on GitHub...")
+			CreateRemoteRepo(*repoName, token)
+		} else {
+			fmt.Println("Skipping remote repository creation on GitHub.")
+			return
+		}
 	}
 }
 
@@ -133,7 +145,7 @@ func CreateDefaultFiles() {
 		f.Close()
 		fmt.Printf("Created file: %s\n", file)
 	}
-	fmt.Println("Created default files: README.md, .gitignore, ...")
+	fmt.Println("Created default files: README.md, .gitignore, LICENSE.md, ...")
 }
 
 func CreateRemoteRepo(repoName, token string) {
