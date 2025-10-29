@@ -131,7 +131,7 @@ func main() {
 						"Please see https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a_personal_access_token")
 				os.Exit(1)
 			}
-			CreateRemoteRepo(*repoName, token)
+			createRemoteRepo(*repoName, token)
 		} else {
 			fmt.Println("Skipping remote repository creation on GitHub.")
 			return
@@ -172,7 +172,7 @@ func makeProjectSkeleton(baseDir string) error {
 	return nil
 }
 
-func CreateRemoteRepo(repoName, token string) {
+func createRemoteRepo(repoName, token string) {
 	payload := map[string]interface{}{
 		"name":        repoName,
 		"description": "This is a newly created repository",
