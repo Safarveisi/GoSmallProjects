@@ -14,11 +14,6 @@ import (
 	"time"
 )
 
-type RepoPublicKey struct {
-	KeyID string `json:"key_id"`
-	Key   string `json:"key"`
-}
-
 var defaultFiles = []string{
 	".gitignore",
 	"README.md",
@@ -141,14 +136,6 @@ func main() {
 				fmt.Fprintf(os.Stderr, "Error creating remote repository: %v\n", err)
 				os.Exit(1)
 			}
-
-			// Get repository public key to encrypt secrets (cherry on top of creating the repo)
-			repoPublicKey, err := getRepoPublicKey(*repoName, *repoUser, token)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error getting repository public key: %v\n", err)
-				os.Exit(1)
-			}
-			fmt.Printf("Repository key: %+v and ID: %+v\n", repoPublicKey.Key, repoPublicKey.KeyID)
 		} else {
 			fmt.Println("Skipping remote repository creation on GitHub.")
 			return
@@ -220,29 +207,4 @@ func createRemoteRepo(repoName, token string) error {
 		return fmt.Errorf("GitHub returned status %d", resp.StatusCode)
 	}
 	return nil
-}
-
-func getRepoPublicKey(repoName string, repoUser, token string) (RepoPublicKey, error) {
-	req, _ := http.NewRequest(http.MethodGet,
-		fmt.Sprintf("https://api.github.com/repos/%s/%s/actions/secrets/public-key", repoUser, repoName),
-		nil)
-
-	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return RepoPublicKey{}, fmt.Errorf("request error: %v", err)
-	}
-	defer resp.Body.Close()
-
-	var publicKey RepoPublicKey
-	if resp.StatusCode == 200 {
-		json.NewDecoder(resp.Body).Decode(&publicKey)
-	} else {
-		return RepoPublicKey{}, fmt.Errorf("GitHub returned status %d", resp.StatusCode)
-	}
-
-	return publicKey, nil
 }
