@@ -103,7 +103,7 @@ func main() {
 		helper.WriteToFile(".github/workflows/ci.yaml", workflowContent)
 		helper.WriteToFile("README.md", fmt.Sprintf("# %s\n\nThis is the README for the %s repository.\n", *repoName, *repoName))
 
-		fmt.Printf("Created repository %s at %s\n", *repoName, time.Now().Format("2006-01-02 15:04:05"))
+		fmt.Printf("Created local repository %s at %s\n", *repoName, time.Now().Format("2006-01-02 15:04:05"))
 		// Create a file including the repo creation time
 		f, err := os.Create("REPO_CREATED_AT.txt")
 		if err != nil {
@@ -116,7 +116,9 @@ func main() {
 			fmt.Println("Creating remote repository on GitHub...")
 			token, exists := os.LookupEnv("GITHUB_TOKEN")
 			if !exists {
-				fmt.Fprintln(os.Stderr, "GITHUB_TOKEN environment variable is not set")
+				fmt.Fprintln(os.Stderr,
+					"GITHUB_TOKEN environment variable is not set. "+
+						"Please see https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a_personal_access_token")
 				os.Exit(1)
 			}
 			CreateRemoteRepo(*repoName, token)
