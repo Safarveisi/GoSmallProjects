@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"create-git-repo/helper"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,6 +16,7 @@ import (
 var defaultFiles = []string{
 	".gitignore",
 	"README.md",
+	"LICENSE.md",
 	".github/workflows/ci.yaml",
 }
 
@@ -73,8 +77,20 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-
 		fmt.Println("Configured username and email.")
+
+		fmt.Printf("> git remote add origin git@github.com:%s/%s.git\n", *repoUser, *repoName)
+		err = exec.Command(
+			"git",
+			"remote",
+			"add",
+			"origin",
+			fmt.Sprintf("git@github.com:%s/%s.git", *repoUser, *repoName),
+		).Run()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Added remote origin.")
 
 		// Create default files
 		CreateDefaultFiles()
@@ -90,6 +106,13 @@ func main() {
 		defer f.Close()
 		f.WriteString(fmt.Sprintf("Repository %s created at %s\n", *repoName, time.Now().Format("2006-01-02 15:04:05")))
 
+		token, exists := os.LookupEnv("GITHUB_TOKEN")
+		if !exists {
+			fmt.Fprintln(os.Stderr, "GITHUB_TOKEN environment variable is not set")
+			os.Exit(1)
+		}
+
+		CreateRemoteRepo(*repoName, token)
 	}
 }
 
@@ -111,4 +134,37 @@ func CreateDefaultFiles() {
 		fmt.Printf("Created file: %s\n", file)
 	}
 	fmt.Println("Created default files: README.md, .gitignore, ...")
+}
+
+func CreateRemoteRepo(repoName, token string) {
+	payload := map[string]interface{}{
+		"name":        repoName,
+		"description": "This is a newly created repository",
+		"homepage":    "https://github.com",
+		"private":     false,
+		"is_template": false,
+	}
+
+	body, _ := json.Marshal(payload)
+
+	req, _ := http.NewRequest(http.MethodPost,
+		"https://api.github.com/user/repos",
+		bytes.NewReader(body))
+
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "request error: %v\n", err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		fmt.Println("Remote repository created successfully on GitHub.")
+	} else {
+		fmt.Fprintf(os.Stderr, "GitHub returned status %d\n", resp.StatusCode)
+	}
 }
