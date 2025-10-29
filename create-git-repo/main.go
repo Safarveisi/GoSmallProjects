@@ -112,14 +112,13 @@ func main() {
 		defer f.Close()
 		f.WriteString(fmt.Sprintf("Repository %s created at %s\n", *repoName, time.Now().Format("2006-01-02 15:04:05")))
 
-		token, exists := os.LookupEnv("GITHUB_TOKEN")
-		if !exists {
-			fmt.Fprintln(os.Stderr, "GITHUB_TOKEN environment variable is not set")
-			os.Exit(1)
-		}
-
 		if *createRemote {
 			fmt.Println("Creating remote repository on GitHub...")
+			token, exists := os.LookupEnv("GITHUB_TOKEN")
+			if !exists {
+				fmt.Fprintln(os.Stderr, "GITHUB_TOKEN environment variable is not set")
+				os.Exit(1)
+			}
 			CreateRemoteRepo(*repoName, token)
 		} else {
 			fmt.Println("Skipping remote repository creation on GitHub.")
