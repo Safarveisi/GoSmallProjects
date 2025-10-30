@@ -14,7 +14,8 @@ import (
 	"time"
 )
 
-var personalAccessTokenURL = "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a_personal_access_token"
+var personalAccessTokenURL = "https://docs.github.com/en/authentication/" +
+	"keeping-your-account-and-data-secure/creating-a_personal_access_token"
 
 var defaultFiles = []string{
 	".gitignore",
