@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+var personalAccessTokenURL = "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a_personal_access_token"
+
 var defaultFiles = []string{
 	".gitignore",
 	"README.md",
@@ -126,9 +128,8 @@ func main() {
 			fmt.Println("Creating remote repository on GitHub...")
 			token, exists := os.LookupEnv("GITHUB_TOKEN")
 			if !exists {
-				fmt.Fprintln(os.Stderr,
-					"GITHUB_TOKEN environment variable is not set. "+
-						"Please see https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a_personal_access_token")
+				fmt.Fprintf(os.Stderr,
+					"GITHUB_TOKEN environment variable is not set. Please see %s\n", personalAccessTokenURL)
 				os.Exit(1)
 			}
 			err = createRemoteRepo(*repoName, token)
