@@ -14,10 +14,10 @@ import (
 	"time"
 )
 
-var personalAccessTokenURL = "https://docs.github.com/en/authentication/" +
+const personalAccessTokenURL = "https://docs.github.com/en/authentication/" +
 	"keeping-your-account-and-data-secure/creating-a_personal_access_token"
 
-var defaultFiles = []string{
+const defaultFiles = []string{
 	".gitignore",
 	"README.md",
 	"LICENSE.md",
@@ -25,7 +25,7 @@ var defaultFiles = []string{
 	"tests/",
 }
 
-var workflowContent = `
+const workflowContent = `
 # This is a sample GitHub Actions workflow
 name: CI
 
