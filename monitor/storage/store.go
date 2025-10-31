@@ -21,11 +21,6 @@ type Store interface {
 	// written or none.
 	Save(ctx context.Context, snap *MetricsSnapshot) error
 
-	// Query returns metric records for a given name between the time range.
-	// If name is empty the call returns records for *all* metric names.
-	// The returned slice is sorted by Timestamp ascending.
-	Query(ctx context.Context, name string, from, to time.Time) ([]MetricRecord, error)
-
 	// Close releases any resources (e.g. DB connections).
 	Close() error
 }
