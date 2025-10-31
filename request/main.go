@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"path"
 	s "strings"
@@ -26,21 +27,63 @@ type PostComments struct {
 	Body   string `json:"body"`
 }
 
-func worker(id int, jobs <-chan Url, results chan<- Url) {
-	for url := range jobs {
-		fmt.Println("worker", id, "started working on", url)
-		post, err1 := url.fetchPost()
-		comments, err2 := url.fetchComments()
-		fmt.Println("worker", id, "finished working on", url)
-		if err1 == nil {
-			url.success = true
-			url.post = post
-			if err2 == nil {
-				url.post.Comments = comments
+type postResult struct {
+	post *UserPost
+	err  error
+}
+type commentsResult struct {
+	comments *[]PostComments
+	err      error
+}
+
+func worker(ctx context.Context, id int, jobs <-chan Url, results chan<- Url) {
+	for u := range jobs {
+		log.Printf("worker %d started working on %s", id, u.url)
+
+		// create buffered channels so goroutines never block on send
+		postCh := make(chan postResult, 1)
+		commCh := make(chan commentsResult, 1)
+
+		// run both requests concurrently
+		go func() {
+			p, err := u.fetchPost()
+			postCh <- postResult{post: p, err: err}
+		}()
+		go func() {
+			c, err := u.fetchComments()
+			commCh <- commentsResult{comments: c, err: err}
+		}()
+
+		// collect results, but also handle cancellation
+		var pr postResult
+		var cr commentsResult
+		for i := 0; i < 2; i++ {
+			select {
+			case pr = <-postCh:
+			case cr = <-commCh:
+			case <-ctx.Done():
+				log.Printf("worker %d canceled while working on %s", id, u.url)
+				// best effort: still send the (partially updated) object or skip
+				results <- u
+				return
 			}
 		}
 
-		results <- url
+		// apply results
+		if pr.err == nil {
+			u.success = true
+			u.post = pr.post
+			if cr.err == nil && u.post != nil {
+				u.post.Comments = cr.comments
+			} else if cr.err != nil {
+				log.Printf("worker %d: fetchComments error for %s: %v", id, u.url, cr.err)
+			}
+		} else {
+			log.Printf("worker %d: fetchPost error for %s: %v", id, u.url, pr.err)
+		}
+
+		log.Printf("worker %d finished working on %s", id, u.url)
+		results <- u
 	}
 }
 
@@ -133,7 +176,7 @@ func main() {
 	resps := make(chan Url, numJobs)
 
 	for w := 1; w <= *countWorkers; w++ {
-		go worker(w, jobs, resps)
+		go worker(context.Background(), w, jobs, resps)
 	}
 
 	for _, url := range urls {
